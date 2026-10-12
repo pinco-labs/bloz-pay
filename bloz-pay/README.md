@@ -1,34 +1,90 @@
-# BLOZ Pay WordPress — pilota privato
+# BLOZ Pay
 
-Versione 0.1.0 sperimentale, per un sito di prova. Non installata o verificata in un WordPress reale. Implementa articoli testuali per utenti registrati; non download protetti, webhook WordPress, carrelli, guest checkout o abbonamenti.
+Experimental direct-wallet payments for registered-user WordPress articles. **Public prototype, not a production-ready payment gateway.** GPL-2.0-or-later.
 
-## Modello
+This repository contains the WordPress plugin and a standalone Node.js merchant engine. The BLOZ explorer repository, operational configurations, wallets, address pools and private databases are not distributed. This is not a WooCommerce cart gateway and does not protect media-library files.
 
-Il plugin chiama il backend Node merchant sullo stesso host (`127.0.0.1`). Prezzi e conferme provengono dal catalogo Node, minimo due. Il commerciante riceve direttamente nei propri indirizzi. Nessuna chiave wallet o credenziale RPC nel plugin; nessuna custodia o percentuale Pinco Labs. Il checkout non firma trasferimenti e non esegue rimborsi.
+## What is implemented
 
-Gli articoli riservati sono un tipo di contenuto separato, non interrogabile pubblicamente, escluso da ricerca e REST. Il corpo non è incorporato nel normale articolo pubblico: il server lo restituisce soltanto dopo authorize. Ogni nuovo accesso verifica la chain. Questo non protegge una copia già letta o salvata.
+- A separate non-public article type; content is delivered only after a fresh server-side authorization.
+- Stable per-site/user/product orders and encrypted receipts; repeating a request recovers the same invoice.
+- At least two confirmations in the merchant catalog; unavailable verification or reorg denies subsequent access.
+- Merchant credentials and customer receipt tokens stay on the server.
+- Direct BLOZ prices, or EUR/USD prices with a merchant-defined manual rate. No external exchange-rate API is used.
 
-## Preparazione su staging
+A merchant receives funds directly in their own wallet. The software does not receive private wallet keys, sign transfers, hold balances or charge a transaction percentage. Already delivered content cannot be revoked.
 
-1. PHP 8.1+ con OpenSSL e WordPress aggiornato. Backend Node merchant configurato e in esecuzione localmente, con indirizzi nuovi dedicati; prima usare un adapter simulato o rete di prova. Non usare il negozio sintetico 8085 come backend merchant: le sue credenziali sono effimere.
-2. Nel file privato `wp-config.php` definire `BLOZ_PAY_MERCHANT_URL` (esempio `http://127.0.0.1:8083`) e `BLOZ_PAY_MERCHANT_KEY` (credenziale backend). Definire anche `BLOZ_PAY_WP_RECEIPT_KEY` (32 byte casuali in hex, 64 caratteri) e `BLOZ_PAY_WP_SITE_ID` (16 byte casuali in hex, 32 caratteri). Sono valori distinti, da generare e custodire privatamente, mai nel frontend o in Git.
-3. Conservare site ID e chiavi insieme ai backup privati. Cambiare site ID o ID utenti può creare nuovi ordini; perdere la chiave di cifratura impedisce di leggere ricevute salvate. Cloni staging e produzione devono avere istanze merchant e site ID distinti per evitare collisioni.
-4. Installare la cartella `bloz-pay` fra i plugin del sito di prova. Nel menu **BLOZ Pay · contenuti privati** creare l'articolo; assegnare un prodotto del catalogo, per esempio `article`, e pubblicarlo oppure salvarlo privato. Un solo contenuto per prodotto; bozze escluse. La gestione è riservata agli amministratori.
-5. In una pagina pubblica inserire solo teaser e shortcode `[bloz_pay product="article"]`. Il visitatore deve accedere con un account WordPress prima di creare/riprendere la richiesta.
-6. Un utente ha un acquisto stabile per prodotto: requestId deriva da site ID, ID utente e prodotto. Ripetere recupera la stessa fattura e lo stesso prezzo originale. Fatture scadute non vengono sostituite automaticamente: serve riconciliazione. Per nuovi articoli usare nuovi identificativi prodotto/risorsa; non riciclare prodotti già acquistati.
+## Private simulation quick start
 
-## Cautele operative
+Requirements: Node.js 24+, PHP 8.1+ with OpenSSL, WordPress and its own database. Keep WordPress and the merchant on the same host; the plugin calls only HTTP 127.0.0.1. No npm packages are required.
 
-- La ricevuta viene salvata AES-256-GCM nei metadati privati dell'utente, con autenticazione del contesto utente/prodotto. Token e credenziali merchant restano server-side. Il salvataggio va recuperato ripetendo lo stesso ordine in caso di interruzione.
-- Autenticazione WordPress più nonce AJAX; nonce non sostituisce l'autenticazione. In produzione HTTPS del sito e backend locale non esposto al pubblico.
-- Escludere le pagine shortcode e admin-ajax da cache condivise/CDN. Il plugin imposta DONOTCACHEPAGE e header non-cache quando applicabile, ma un proxy che risponde prima di PHP va configurato separatamente.
-- Non caricare file riservati nella libreria media standard: gli URL degli allegati possono essere pubblici. Questo MVP protegge il testo, non immagini o download. Evitare link a materiale segreto o script nel contenuto.
-- Verificare sul sito reale REST, feed, ricerca, sitemap, preview, plugin di esportazione/cache e permessi. Altri plugin possono esporre dati che questa integrazione mantiene privati.
-- HTML sanitizzato con wp_kses_post; nessuna esecuzione di shortcode o filtri arbitrari nel contenuto riservato. Gli errori negano l'accesso; una reorg può revocare i nuovi accessi.
-- Informativa privacy, condizioni del commerciante, fatturazione/rimborsi e verifica normativa del deployment restano responsabilità dell'integrazione. Licenza del codice distinta dai termini dei servizi; distribuzione pubblica non ancora avviata.
+```sh
+npm run demo:init
+npm run demo
+```
 
-## Verifiche eseguite
+Run these commands from the repository root. The first creates random credentials and a WordPress configuration snippet under `private/` (excluded from Git); the second starts the merchant on 127.0.0.1:8083 using a synthetic chain. Do not publish those generated files, and NEVER send funds to synthetic addresses.
 
-Sintassi PHP verificata con runtime portatile ufficiale. Fixture delle API WordPress: contenuto autorizzato, pagamento assente, nonce errato, utente anonimo, ricevuta alterata e backend indisponibile; token escluso dalle risposte di creazione e corpo assente nello shortcode. Non è un collaudo di WordPress completo.
+Copy the definitions from `private/wp-config-snippet.php` into the private `wp-config.php` of your TEST installation. Install the `bloz-pay/` directory or the plugin ZIP from GitHub Releases. Backend code is in this repository, not in the plugin ZIP.
 
-Test: impostare BLOZ_TEST_PHP e BLOZ_TEST_PHP_EXT al runtime PHP locale con OpenSSL, poi `node --test test/pay-wordpress.test.js` dalla radice del progetto. Senza runtime il test viene esplicitamente saltato.
+In WordPress, create one BLOZ Pay private article with product `article`, and publish it. Add only a public teaser and `[bloz_pay product="article"]` to a normal page. Log in with a test user, then create/recover the request. Initially, content is denied.
+
+For simulation, create `private/synthetic-chain.json` with the invoice's synthetic address as a key. An example structure (replace the address placeholder) is:
+
+```json
+{
+  "SYNTHETIC_INVOICE_ADDRESS": [{
+    "outpoint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:0",
+    "amountRex": "1000000",
+    "height": 99,
+    "coinbase": false
+  }]
+}
+```
+
+The synthetic tip is 100: height 100 gives one confirmation, 99 gives two. This amount is 0.01 BLOZ. `{}` simulates removed outputs/reorg; `{"outage":true}` simulates unavailable verification. Synthetic controls are file-based and stay outside the browser. No simulation control endpoint is exposed by the merchant.
+
+## Merchant pricing
+
+Direct price (decimal BLOZ string):
+
+```json
+{"article":{"amount":"0.01000000","resource":"article-example","confirmations":2,"expiresInSeconds":86400}}
+```
+
+Manual EUR price and rate (BLOZ per one EUR; USD works the same way):
+
+```json
+{"article":{"pricing":{"currency":"EUR","amount":"1.50","blozPerUnit":"2.5"},"resource":"article-example","confirmations":2,"expiresInSeconds":86400}}
+```
+
+This produces 3.75000000 BLOZ. Fiat amounts accept up to two decimal places, rates up to eight; conversion uses integer arithmetic and rounds upward to one rex. Choose `amount` OR `pricing`. Set `BLOZ_PAY_CATALOG_FILE` to your catalog file and restart the backend when changing it. Existing invoices keep their original BLOZ amount, even when the same order is recovered after catalog changes. Source fiat prices and rates are not yet stored in the invoice or displayed in the plugin checkout.
+
+`resolveCatalog(catalog, {rateProvider})` provides an extension point for a future trusted backend rate source. No rate API is bundled. A missing or failed rate aborts catalog setup, rather than silently using a made-up rate. Rate-provider freshness, source validation and operational policy must be implemented with that integration.
+
+## Custom chain integration
+
+The bundled adapter is simulation-only. This public release does NOT include a ready-to-use real-chain indexer or live-wallet setup. For a custom integration, unset `BLOZ_PAY_SIMULATED` and set `BLOZ_PAY_ADAPTER_MODULE` to a trusted local module exporting `provider`, `genesisHash`, and optionally `rateProvider`.
+
+The provider must implement:
+
+- `allocateAddress()`: a never-used, merchant-controlled BLOZ address permanently dedicated to one invoice. The integrator must verify checksum, network, ownership and prior use; the SDK's format check is not sufficient.
+- `snapshot(address)`: `{complete,genesisHash,checkedAt,tipHeight,outputs}` with a complete coherent current view including spent historical outputs and mempool. Each output has `{outpoint,amountRex,height,coinbase}`; height is null for unconfirmed outputs. Confirm block hashes/tip consistency and the pinned genesis. Never refresh timestamps on stale data.
+
+Use dedicated database/address pools; never restore a stale address pool independently of invoice history. Keep independent random merchant and receipt encryption keys, catalog and backups private. The server binds only to loopback. A live integration requires separate operational validation; do not use real funds based only on this simulation release.
+
+## Testing and limits
+
+Before public release, a sanitized WordPress clone with WooCommerce/theme context passed 49 HTTP assertions on Linux hosting and Windows, using a synthetic chain: order recovery, one/two confirmations, reorg, unavailable chain, stopped backend, anonymous/nonce rejection, protected content absent from checked public HTML/REST/feed/search/sitemap routes, non-cache AJAX headers and encrypted receipts with tokens absent from captured HTTP responses. These were simulated payments, not live-chain transactions.
+
+No shared CDN/page cache was enabled; configure and test cache exclusions before any different deployment. Media files, subscriptions, guest checkout, WooCommerce cart payments, refunds and automatic EUR/USD conversion are not implemented. Other plugins, exports and caches can expose data and require their own checks. A receipt-tampering case is covered by a PHP fixture, not the full WordPress HTTP run.
+
+```sh
+npm test
+```
+
+The PHP fixture requires `BLOZ_TEST_PHP` and `BLOZ_TEST_PHP_EXT`; without them that test is explicitly skipped. Configure these for a PHP runtime with OpenSSL. No private clone, customer data or production credentials are included in the tests.
+
+## License
+
+Copyright (c) 2026 Pinco Labs. GNU General Public License v2.0 or later; see LICENSE. The license applies to software, not a promise of hosted services or production support.

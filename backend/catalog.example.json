@@ -1,0 +1,14 @@
+{
+  "article": {
+    "amount": "0.01000000",
+    "resource": "article-example",
+    "confirmations": 2,
+    "expiresInSeconds": 86400
+  },
+  "download": {
+    "amount": "0.02000000",
+    "resource": "download-example",
+    "confirmations": 2,
+    "expiresInSeconds": 86400
+  }
+}

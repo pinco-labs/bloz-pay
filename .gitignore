@@ -4,3 +4,6 @@ secrets/
 dist/
 *.zip
 *.log
+
+private/
+node_modules/

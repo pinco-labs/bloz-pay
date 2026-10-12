@@ -1,10 +1,13 @@
 <?php
 /**
- * Plugin Name: BLOZ Pay — Private Pilot
+ * Plugin Name: BLOZ Pay — Experimental
  * Description: Experimental direct-wallet article access through a local BLOZ Pay merchant backend.
  * Version: 0.1.0
  * Requires PHP: 8.1
  * Author: Pinco Labs
+ * License: GPL v2 or later
+ * License URI: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
+ * Update URI: https://github.com/pinco-labs/bloz-pay
  */
 if (!defined('ABSPATH')) { exit; }
 
