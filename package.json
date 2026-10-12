@@ -1,1 +1,1 @@
-{"name":"bloz-pay","version":"0.1.1","private":true,"type":"module","license":"GPL-2.0-or-later","engines":{"node":">=24"},"scripts":{"test":"node --test test/*.test.js","demo:init":"node backend/init-demo.js","demo":"node --env-file=private/demo.env backend/server.js"}}
+{"name":"bloz-pay","version":"0.1.2","private":true,"type":"module","license":"GPL-2.0-or-later","engines":{"node":">=24"},"scripts":{"test":"node --test test/*.test.js","demo:init":"node backend/init-demo.js","demo":"node --env-file=private/demo.env backend/server.js"}}

@@ -66,25 +66,29 @@ export class BlozPay {
    if(!/^[a-f0-9]{64}:(0|[1-9][0-9]{0,9})$/.test(output.outpoint)||Number(output.outpoint.split(':')[1])>4294967295||seen.has(output.outpoint)||typeof output.amountRex!=='string'||!/^\d+$/.test(output.amountRex)||typeof output.coinbase!=='boolean'||(output.height!==null&&(!Number.isSafeInteger(output.height)||output.height<0||output.height>snapshot.tipHeight)))throw new Error('Invalid snapshot');
    seen.add(output.outpoint);const value=BigInt(output.amountRex);if(value>MAX_REX)throw new Error('Invalid amount');parsed.push({...output,value});
   }}catch{return {...invoice,status:'unavailable',access:false};}
-  let detected=0n,confirmed=0n,late=0n;
+  let detected=0n,confirmed=0n,late=0n;const depths=[];
   this.db.exec('BEGIN IMMEDIATE');
   try{for(const output of parsed){
    if(output.coinbase)continue;
    this.db.prepare('INSERT OR IGNORE INTO observations VALUES(?,?,?)').run(id,output.outpoint,now);
    const first=this.db.prepare('SELECT firstseen FROM observations WHERE invoice=? AND outpoint=?').get(id,output.outpoint).firstseen;
    if(first>=invoice.expiresAt){late+=output.value;continue;}
-   detected+=output.value;
+   detected+=output.value;depths.push({value:output.value,depth:output.height===null?0:snapshot.tipHeight-output.height+1});
    if(output.height!==null&&snapshot.tipHeight-output.height+1>=invoice.confirmations)confirmed+=output.value;
   }this.db.exec('COMMIT');}catch(error){this.db.exec('ROLLBACK');throw error;}
   const required=BigInt(invoice.amountRex),paid=confirmed>=required;
+  let covered=0n,paymentConfirmations=null;for(const part of depths.sort((a,b)=>b.depth-a.depth)){covered+=part.value;if(covered>=required){paymentConfirmations=part.depth;break;}}
   const status=paid?'paid':detected>=required?'confirming':now>=invoice.expiresAt?'expired':detected>0n?'partial':'awaiting';
-  return {...invoice,status,access:paid,detectedRex:detected.toString(),confirmedRex:confirmed.toString(),lateRex:late.toString(),overpaidRex:(confirmed>required?confirmed-required:0n).toString()};
+  return {...invoice,status,access:paid,paymentConfirmations,detectedRex:detected.toString(),confirmedRex:confirmed.toString(),lateRex:late.toString(),overpaidRex:(confirmed>required?confirmed-required:0n).toString()};
  }
  async authorize(id,token,resource){
-  if(typeof token!=='string'||token.length>200)return false;
+  return (await this.authorizationDetails(id,token,resource)).authorized;
+ }
+ async authorizationDetails(id,token,resource){
+  if(typeof token!=='string'||token.length>200)return {authorized:false,status:'denied'};
   const row=this.db.prepare('SELECT tokenhash,resource FROM invoices WHERE id=?').get(id);
-  if(!row||row.resource!==resource||!timingSafeEqual(digest(token),row.tokenhash))return false;
-  return (await this.check(id)).access;
+  if(!row||row.resource!==resource||!timingSafeEqual(digest(token),row.tokenhash))return {authorized:false,status:'denied'};
+  const result=await this.check(id);return {authorized:result.access,status:result.status,paymentConfirmations:result.paymentConfirmations??null,confirmations:result.confirmations};
  }
  close(){this.db.close();}
 }

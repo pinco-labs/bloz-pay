@@ -10,7 +10,7 @@ The provider pins BLOZ mainnet genesis `44c1a8c852b3eda21966e1ddb6b0807e22488dff
 
 The two default servers share an operator. Agreement catches outages, corruption, lag and ordinary disagreement, but not a shared dishonest or compromised source. TLS authenticates the service, not the truth of its chain view. Querying both also reveals the watched public address/script hash to both services. Prefer the local validated-node/index mode when that trust boundary is unacceptable.
 
-Real-chain mode requires explicit `BLOZ_PAY_ELECTRUM_TRUST=two-server-trusted-history`, so simulation does not silently become a live deployment. Initial adapter validation used synthetic tests and read-only historical transactions; it is not yet a new-payment WordPress live test or a production audit.
+Real-chain mode requires explicit `BLOZ_PAY_ELECTRUM_TRUST=two-server-trusted-history`, so simulation does not silently become a live deployment. Validation includes synthetic tests, historical read-only probes and one voluntary 1 BLOZ WordPress payment on 12 October 2026, delivered after two confirmations. This is not a production audit; real reorgs were not induced.
 
 ## Address pool
 

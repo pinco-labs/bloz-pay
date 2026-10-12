@@ -8,7 +8,7 @@ This repository contains the WordPress plugin and a standalone Node.js merchant 
 
 - A separate non-public article type; content is delivered only after a fresh server-side authorization.
 - Stable per-site/user/product orders and encrypted receipts; repeating a request recovers the same invoice.
-- At least two confirmations in the merchant catalog; unavailable verification or reorg denies subsequent access.
+- At least two confirmations in the merchant catalog; unavailable verification or reorg denies subsequent access. Checkout displays the confirmation depth covering the full required amount and distinguishes verification outages from pending payments.
 - Merchant credentials and customer receipt tokens stay on the server.
 - Direct BLOZ prices, or EUR/USD prices with a merchant-defined manual rate. No external exchange-rate API is used.
 
@@ -64,7 +64,7 @@ This produces 3.75000000 BLOZ. Fiat amounts accept up to two decimal places, rat
 
 ## Choosing a chain source
 
-Choose `BLOZ_PAY_CHAIN_MODE=simulation`, `electrum`, `rpc`, or `custom`. See [backend/CHAIN-MODES.md](backend/CHAIN-MODES.md) for configuration and [backend/ELECTRUM.md](backend/ELECTRUM.md) for the explicit trusted-server policy. The Electrum adapter uses two public TLS sources; local RPC requires an existing complete synchronized index. A full indexer, wallet setup and independent SPV/consensus verifier are not bundled. The adapters have synthetic and read-only historical checks; no new live WordPress payment has been verified. For custom integrations use a trusted local module exporting `provider`, `genesisHash`, and optionally `rateProvider` / `closeAdapter`.
+Choose `BLOZ_PAY_CHAIN_MODE=simulation`, `electrum`, `rpc`, or `custom`. See [backend/CHAIN-MODES.md](backend/CHAIN-MODES.md) for configuration and [backend/ELECTRUM.md](backend/ELECTRUM.md) for the explicit trusted-server policy. The Electrum adapter uses two public TLS sources; local RPC requires an existing complete synchronized index. A full indexer, wallet setup and independent SPV/consensus verifier are not bundled. On 12 October 2026, a voluntary 1 BLOZ payment on an isolated WordPress clone was detected in mempool, denied at one confirmation and delivered after two confirmations using both Electrum sources. The same invoice was recovered throughout. This is one integration test, not a production audit. No payer/merchant addresses or transaction identifiers are published here. For custom integrations use a trusted local module exporting `provider`, `genesisHash`, and optionally `rateProvider` / `closeAdapter`.
 
 The provider must implement:
 
@@ -75,7 +75,7 @@ Use dedicated database/address pools; never restore a stale address pool indepen
 
 ## Testing and limits
 
-Before public release, a sanitized WordPress clone with WooCommerce/theme context passed 49 HTTP assertions on Linux hosting and Windows, using a synthetic chain: order recovery, one/two confirmations, reorg, unavailable chain, stopped backend, anonymous/nonce rejection, protected content absent from checked public HTML/REST/feed/search/sitemap routes, non-cache AJAX headers and encrypted receipts with tokens absent from captured HTTP responses. These were simulated payments, not live-chain transactions.
+Before public release, a sanitized WordPress clone with WooCommerce/theme context passed 49 HTTP assertions on Linux hosting and Windows, using a synthetic chain: order recovery, one/two confirmations, reorg, unavailable chain, stopped backend, anonymous/nonce rejection, protected content absent from checked public HTML/REST/feed/search/sitemap routes, non-cache AJAX headers and encrypted receipts with tokens absent from captured HTTP responses. These 49 assertions used simulated payments. A subsequent voluntary 1 BLOZ real-chain WordPress test also verified the pending → one-confirmation → two-confirmation delivery path on the same invoice. Real reorgs were not induced; those cases remain synthetic.
 
 No shared CDN/page cache was enabled; configure and test cache exclusions before any different deployment. Media files, subscriptions, guest checkout, WooCommerce cart payments, refunds and automatic EUR/USD conversion are not implemented. Other plugins, exports and caches can expose data and require their own checks. A receipt-tampering case is covered by a PHP fixture, not the full WordPress HTTP run.
 

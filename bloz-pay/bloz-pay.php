@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BLOZ Pay — Experimental
  * Description: Experimental direct-wallet article access through a local BLOZ Pay merchant backend.
- * Version: 0.1.1
+ * Version: 0.1.2
  * Requires PHP: 8.1
  * Author: Pinco Labs
  * License: GPL v2 or later
@@ -61,7 +61,7 @@ final class Pinco_Bloz_Pay {
         // Personalized nonces and content must never enter shared caches.
         if (!defined('DONOTCACHEPAGE')) { define('DONOTCACHEPAGE', true); }
         nocache_headers();
-        wp_enqueue_script('bloz-pay', plugins_url('checkout.js', __FILE__), [], '0.1.1', true);
+        wp_enqueue_script('bloz-pay', plugins_url('checkout.js', __FILE__), [], '0.1.2', true);
         return '<section class="bloz-pay" data-product="' . esc_attr($product) . '" data-url="' . esc_url(admin_url('admin-ajax.php')) . '" data-nonce="' . esc_attr(wp_create_nonce('bloz_pay')) . '">' .
             '<p>Pagamento diretto al commerciante in BLOZ. Plugin sperimentale.</p>' .
             '<button type="button" data-command="order">Crea o riprendi richiesta</button> ' .
@@ -134,6 +134,7 @@ final class Pinco_Bloz_Pay {
         try {
             $receipt = self::receipt($user, $product);
             $result = self::merchant('/v1/authorize', ['id' => $receipt['id'], 'accessToken' => $receipt['accessToken'], 'product' => $product]);
+            if (($result['status'] ?? '') === 'unavailable') { wp_send_json_error(['message' => 'Verifica temporaneamente indisponibile. Riprova la stessa richiesta: non inviare un altro pagamento.'], 503); }
             if (($result['authorized'] ?? false) !== true) { wp_send_json_error(['message' => 'Pagamento confermato necessario.'], 403); }
             // No shortcodes or arbitrary content filters: private text is delivered only here.
             wp_send_json_success(['content' => wp_kses_post(wpautop($post->post_content))]);

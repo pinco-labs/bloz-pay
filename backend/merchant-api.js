@@ -44,7 +44,7 @@ export function merchantServer({pay,apiKey,receiptKey,catalog,port=8083}) {
    if(req.url==='/v1/authorize') {
     const item=products.get(body.product);
     if(!item||typeof body.accessToken!=='string')return reply(res,400,{error:'Product and customer receipt required'});
-    return reply(res,200,{authorized:await pay.authorize(body.id,body.accessToken,item.resource)});
+    return reply(res,200,await pay.authorizationDetails(body.id,body.accessToken,item.resource));
    }
    return reply(res,404,{error:'Not found'});
   }catch(error){return reply(res,error.code==='CONFLICT'?409:503,{error:error.code==='CONFLICT'?error.message:'Payment service unavailable; retain the same request ID'});}
