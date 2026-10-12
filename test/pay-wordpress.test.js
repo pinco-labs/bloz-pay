@@ -4,7 +4,7 @@ import {spawnSync} from 'node:child_process';
 
 test('WordPress plugin gates private articles, rejects bad nonce/receipt, and hides capabilities', {skip:!process.env.BLOZ_TEST_PHP},()=>{
  const run=scenario=>{
-  const result=spawnSync(process.env.BLOZ_TEST_PHP,['-n','-d','extension_dir='+process.env.BLOZ_TEST_PHP_EXT,'-d','extension=openssl','test/fixtures/wordpress-pay.php',scenario],{encoding:'utf8'});
+  const result=spawnSync(process.env.BLOZ_TEST_PHP,['-n','-d','extension_dir='+process.env.BLOZ_TEST_PHP_EXT,...(process.platform==='win32'?['-d','extension=openssl']:[]),'test/fixtures/wordpress-pay.php',scenario],{encoding:'utf8'});
   assert.equal(result.status,0,result.stderr);return JSON.parse(result.stdout);
  };
  assert.equal(run('content').data.content,'<p>PRIVATE ARTICLE</p>');
