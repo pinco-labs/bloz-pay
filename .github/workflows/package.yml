@@ -1,0 +1,36 @@
+name: Verify and package private plugin
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: PHP syntax
+        run: php -l bloz-pay/bloz-pay.php
+      - name: Deterministic archive and checksum
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile, ZipInfo, ZIP_DEFLATED
+          import hashlib
+          Path('dist').mkdir(exist_ok=True)
+          target = Path('dist/bloz-pay-wordpress-0.1.0.zip')
+          with ZipFile(target, 'w', compression=ZIP_DEFLATED) as archive:
+              for path in sorted(Path('bloz-pay').rglob('*')):
+                  if path.is_file():
+                      info = ZipInfo(path.as_posix(), (2026, 1, 1, 0, 0, 0))
+                      info.compress_type = ZIP_DEFLATED
+                      info.external_attr = 0o100644 << 16
+                      archive.writestr(info, path.read_bytes())
+          Path(str(target) + '.sha256').write_text(hashlib.sha256(target.read_bytes()).hexdigest() + '  ' + target.name + '\n')
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: bloz-pay-wordpress-${{ github.sha }}
+          path: dist/
+          retention-days: 30

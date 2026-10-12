@@ -1,0 +1,6 @@
+.env*
+secrets/
+*.sqlite*
+dist/
+*.zip
+*.log
