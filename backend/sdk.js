@@ -11,7 +11,12 @@ export class BlozPay {
   this.db=new DatabaseSync(database);this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;
    CREATE TABLE IF NOT EXISTS invoices(id TEXT PRIMARY KEY,address TEXT UNIQUE NOT NULL,amount INTEGER NOT NULL,resource TEXT NOT NULL,created INTEGER NOT NULL,expires INTEGER NOT NULL,minconf INTEGER NOT NULL,tokenhash BLOB NOT NULL) STRICT;
    CREATE TABLE IF NOT EXISTS observations(invoice TEXT NOT NULL REFERENCES invoices(id),outpoint TEXT NOT NULL,firstseen INTEGER NOT NULL,PRIMARY KEY(invoice,outpoint)) STRICT;
-   CREATE TABLE IF NOT EXISTS payment_requests(request TEXT PRIMARY KEY,product TEXT NOT NULL,invoice TEXT REFERENCES invoices(id),receipt BLOB) STRICT;`);
+   CREATE TABLE IF NOT EXISTS payment_requests(request TEXT PRIMARY KEY,product TEXT NOT NULL,invoice TEXT REFERENCES invoices(id),receipt BLOB) STRICT;
+   CREATE TABLE IF NOT EXISTS payment_metadata(name TEXT PRIMARY KEY,value TEXT NOT NULL) STRICT;`);
+  try{
+   this.db.prepare('INSERT OR IGNORE INTO payment_metadata VALUES(?,?)').run('genesis',genesisHash);
+   if(this.db.prepare('SELECT value FROM payment_metadata WHERE name=?').get('genesis').value!==genesisHash)throw new Error('Payment database belongs to another blockchain; use its original configuration');
+  }catch(error){this.db.close();throw error;}
  }
  async createInvoice({amount,resource,expiresInSeconds=900,confirmations=6},request=null){
   if(typeof amount!=='string')throw new Error('Amount must be a decimal string');

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BLOZ Pay — Experimental
  * Description: Experimental direct-wallet article access through a local BLOZ Pay merchant backend.
- * Version: 0.1.2
+ * Version: 0.1.3
  * Requires PHP: 8.1
  * Author: Pinco Labs
  * License: GPL v2 or later
@@ -61,7 +61,7 @@ final class Pinco_Bloz_Pay {
         // Personalized nonces and content must never enter shared caches.
         if (!defined('DONOTCACHEPAGE')) { define('DONOTCACHEPAGE', true); }
         nocache_headers();
-        wp_enqueue_script('bloz-pay', plugins_url('checkout.js', __FILE__), [], '0.1.2', true);
+        wp_enqueue_script('bloz-pay', plugins_url('checkout.js', __FILE__), [], '0.1.3', true);
         return '<section class="bloz-pay" data-product="' . esc_attr($product) . '" data-url="' . esc_url(admin_url('admin-ajax.php')) . '" data-nonce="' . esc_attr(wp_create_nonce('bloz_pay')) . '">' .
             '<p>Pagamento diretto al commerciante in BLOZ. Plugin sperimentale.</p>' .
             '<button type="button" data-command="order">Crea o riprendi richiesta</button> ' .
@@ -111,6 +111,22 @@ final class Pinco_Bloz_Pay {
         if ($plain === false) { throw new RuntimeException('Ricevuta non recuperabile.'); }
         return json_decode($plain, true, 16, JSON_THROW_ON_ERROR);
     }
+    private static function public_error(Throwable $error): string {
+        $safe = [
+            'Backend locale non configurato.', 'Verifica indisponibile. Riprendi la stessa richiesta, senza inviare un altro pagamento.',
+            'Chiave di cifratura locale non configurata.', 'Salvataggio ricevuta non riuscito.', 'Crea prima una richiesta.',
+            'Ricevuta non recuperabile.', 'Identificativo del sito non configurato.', 'Fattura non valida.', 'Risposta non valida.'
+        ];
+        return in_array($error->getMessage(), $safe, true) ? $error->getMessage() :
+            'Operazione temporaneamente indisponibile. Riprendi la stessa richiesta; non inviare un altro pagamento.';
+    }
+    private static function public_invoice(array $invoice): array {
+        // Never forward arbitrary backend fields, even if a future adapter adds diagnostics.
+        return array_intersect_key($invoice, array_flip([
+            'id', 'address', 'amount', 'amountRex', 'resource', 'createdAt', 'expiresAt', 'confirmations',
+            'status', 'access', 'paymentConfirmations', 'detectedRex', 'confirmedRex', 'lateRex', 'overpaidRex'
+        ]));
+    }
     public static function order(): void {
         [$user, $product] = self::context();
         try {
@@ -121,13 +137,13 @@ final class Pinco_Bloz_Pay {
             $invoice = self::merchant('/v1/invoices', ['product' => $product, 'requestId' => $id]);
             if (!preg_match('/^[a-f0-9]{48}$/D', $invoice['id'] ?? '') || !preg_match('/^[-_A-Za-z0-9]{43}$/D', $invoice['accessToken'] ?? '') || ($invoice['confirmations'] ?? 0) < 2) { throw new RuntimeException('Fattura non valida.'); }
             self::save_receipt($user, $product, $invoice);
-            unset($invoice['accessToken']); wp_send_json_success($invoice);
-        } catch (Throwable $error) { wp_send_json_error(['message' => $error->getMessage()], 503); }
+            wp_send_json_success(self::public_invoice($invoice));
+        } catch (Throwable $error) { wp_send_json_error(['message' => self::public_error($error)], 503); }
     }
     public static function status(): void {
         [$user, $product] = self::context();
-        try { $receipt = self::receipt($user, $product); wp_send_json_success(self::merchant('/v1/status', ['id' => $receipt['id']])); }
-        catch (Throwable $error) { wp_send_json_error(['message' => $error->getMessage()], 503); }
+        try { $receipt = self::receipt($user, $product); wp_send_json_success(self::public_invoice(self::merchant('/v1/status', ['id' => $receipt['id']]))); }
+        catch (Throwable $error) { wp_send_json_error(['message' => self::public_error($error)], 503); }
     }
     public static function content(): void {
         [$user, $product, $post] = self::context();
@@ -138,7 +154,7 @@ final class Pinco_Bloz_Pay {
             if (($result['authorized'] ?? false) !== true) { wp_send_json_error(['message' => 'Pagamento confermato necessario.'], 403); }
             // No shortcodes or arbitrary content filters: private text is delivered only here.
             wp_send_json_success(['content' => wp_kses_post(wpautop($post->post_content))]);
-        } catch (Throwable $error) { wp_send_json_error(['message' => $error->getMessage()], 503); }
+        } catch (Throwable $error) { wp_send_json_error(['message' => self::public_error($error)], 503); }
     }
 }
 Pinco_Bloz_Pay::init();

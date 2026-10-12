@@ -18,8 +18,11 @@ function update_user_meta($id, $key, $value) { $GLOBALS['meta'][$key] = $value; 
 function get_user_meta($id, $key, $single) { return $GLOBALS['meta'][$key] ?? ''; }
 function wp_remote_post($url, $args) {
     $body = json_decode($args['body'], true);
-    if (str_ends_with($url, '/v1/invoices')) { return ['code' => 201, 'body' => json_encode(['id' => str_repeat('c', 48), 'resource' => 'article', 'accessToken' => str_repeat('d', 43), 'confirmations' => 2])]; }
+    if (str_ends_with($url, '/v1/invoices')) { return ['code' => 201, 'body' => json_encode(['id' => str_repeat('c', 48), 'resource' => 'article', 'accessToken' => str_repeat('d', 43), 'confirmations' => 2, 'unexpectedSecret' => 'PRIVATE_BACKEND_FIELD'])]; }
+    if (str_ends_with($url, '/v1/status')) { return ['code' => 200, 'body' => json_encode(['status' => 'paid', 'paymentConfirmations' => 2, 'accessToken' => 'PRIVATE_BACKEND_FIELD', 'unexpectedSecret' => 'PRIVATE_BACKEND_FIELD'])]; }
     if ($GLOBALS['scenario'] === 'outage') { return ['code' => 503, 'body' => '{}']; }
+    if ($GLOBALS['scenario'] === 'internal') { throw new RuntimeException('PRIVATE_DEBUG_CREDENTIAL_SHOULD_NOT_LEAK'); }
+    if ($GLOBALS['scenario'] === 'chainoutage') { return ['code' => 200, 'body' => json_encode(['authorized' => false, 'status' => 'unavailable'])]; }
     return ['code' => 200, 'body' => json_encode(['authorized' => $GLOBALS['scenario'] !== 'unpaid'])];
 }
 function is_wp_error($value) { return false; }
@@ -42,4 +45,5 @@ if ($scenario === 'order') { Pinco_Bloz_Pay::order(); }
 $save = new ReflectionMethod(Pinco_Bloz_Pay::class, 'save_receipt');
 $save->invoke(null, 7, 'article', ['id' => str_repeat('c', 48), 'accessToken' => str_repeat('d', 43)]);
 if ($scenario === 'tampered') { $meta['_bloz_pay_article'] = base64_encode(str_repeat('x', 60)); }
+if ($scenario === 'status') { Pinco_Bloz_Pay::status(); }
 Pinco_Bloz_Pay::content();

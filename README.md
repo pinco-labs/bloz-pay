@@ -88,3 +88,11 @@ The PHP fixture requires `BLOZ_TEST_PHP` and `BLOZ_TEST_PHP_EXT`; without them t
 ## License
 
 Copyright (c) 2026 Pinco Labs. GNU General Public License v2.0 or later; see LICENSE. The license applies to software, not a promise of hosted services or production support.
+
+## Demonstration phase completed — 12 October 2026
+
+The experimental feasibility phase is complete: private WordPress simulations, one voluntary real 1 BLOZ payment with delivery after two confirmations, 16 automated tests, encrypted/idempotent receipts, explicit chain-source trust boundaries and a public downloadable release. This is a demonstrated prototype, not a production security audit.
+
+The final hardening pass masks unexpected PHP errors, allowlists browser-visible invoice/status fields, bounds HTTP request reception, rejects unexpected API fields, and pins each payment database to its genesis hash. Existing legacy databases acquire that pin on first upgrade: verify the selected source against their original configuration before upgrading. Never point a legacy simulation database at a live adapter.
+
+Future production work is deliberately deferred: hosting/CDN cache verification, live local-RPC/index validation, recovery/restore runbooks and monitoring, real reorg operational testing, and a separate WooCommerce cart gateway. The current media, late-payment, address reservation and Electrum trust limitations remain documented. No further payment or production-site deployment is required to close this demonstration phase.

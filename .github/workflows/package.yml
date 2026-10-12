@@ -28,7 +28,7 @@ jobs:
           from zipfile import ZipFile, ZipInfo, ZIP_DEFLATED
           import hashlib
           Path('dist').mkdir(exist_ok=True)
-          target = Path('dist/bloz-pay-wordpress-0.1.2.zip')
+          target = Path('dist/bloz-pay-wordpress-0.1.3.zip')
           with ZipFile(target, 'w', compression=ZIP_DEFLATED) as archive:
               for path in sorted(Path('bloz-pay').rglob('*')):
                   if path.is_file():

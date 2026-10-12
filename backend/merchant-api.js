@@ -15,7 +15,7 @@ export function merchantServer({pay,apiKey,receiptKey,catalog,port=8083}) {
  const expected=createHash('sha256').update(apiKey).digest();
  let creating=false,requests=0,windowStart=Date.now();
  const reply=(res,status,value)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(value));};
- return createServer(async(req,res)=>{
+ return createServer({requestTimeout:15000,headersTimeout:10000,keepAliveTimeout:5000},async(req,res)=>{
   res.setHeader('X-Content-Type-Options','nosniff');
   const actualPort=res.socket.localPort;
   if(req.headers.host!==`127.0.0.1:${actualPort}`)return reply(res,400,{error:'Invalid host'});
@@ -38,10 +38,12 @@ export function merchantServer({pay,apiKey,receiptKey,catalog,port=8083}) {
    }
    if(!/^[a-f0-9]{48}$/.test(body.id??''))return reply(res,400,{error:'Valid invoice ID required'});
    if(req.url==='/v1/status') {
+    if(Object.keys(body).some(key=>key!=='id'))return reply(res,400,{error:'Status request accepts only an invoice ID'});
     try{pay.invoice(body.id);}catch{return reply(res,404,{error:'Invoice not found'});}
     return reply(res,200,await pay.check(body.id));
    }
    if(req.url==='/v1/authorize') {
+    if(Object.keys(body).some(key=>!['id','product','accessToken'].includes(key)))return reply(res,400,{error:'Unexpected authorization fields'});
     const item=products.get(body.product);
     if(!item||typeof body.accessToken!=='string')return reply(res,400,{error:'Product and customer receipt required'});
     return reply(res,200,await pay.authorizationDetails(body.id,body.accessToken,item.resource));
