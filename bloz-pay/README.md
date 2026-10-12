@@ -62,9 +62,9 @@ This produces 3.75000000 BLOZ. Fiat amounts accept up to two decimal places, rat
 
 `resolveCatalog(catalog, {rateProvider})` provides an extension point for a future trusted backend rate source. No rate API is bundled. A missing or failed rate aborts catalog setup, rather than silently using a made-up rate. Rate-provider freshness, source validation and operational policy must be implemented with that integration.
 
-## Custom chain integration
+## Choosing a chain source
 
-The bundled adapter is simulation-only. This public release does NOT include a ready-to-use real-chain indexer or live-wallet setup. For a custom integration, unset `BLOZ_PAY_SIMULATED` and set `BLOZ_PAY_ADAPTER_MODULE` to a trusted local module exporting `provider`, `genesisHash`, and optionally `rateProvider`.
+Choose `BLOZ_PAY_CHAIN_MODE=simulation`, `electrum`, `rpc`, or `custom`. See [backend/CHAIN-MODES.md](backend/CHAIN-MODES.md) for configuration and [backend/ELECTRUM.md](backend/ELECTRUM.md) for the explicit trusted-server policy. The Electrum adapter uses two public TLS sources; local RPC requires an existing complete synchronized index. A full indexer, wallet setup and independent SPV/consensus verifier are not bundled. The adapters have synthetic and read-only historical checks; no new live WordPress payment has been verified. For custom integrations use a trusted local module exporting `provider`, `genesisHash`, and optionally `rateProvider` / `closeAdapter`.
 
 The provider must implement:
 
